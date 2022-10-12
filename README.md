@@ -3,7 +3,12 @@
 Graceful shutdown for Go! It listens process termination signals and handles
 your shutdown callbacks!
 
-You can use it both in local and global scope. Example:
+## Features
+
+- Scopes: local, global
+- Dependant callbacks with concurrent execution, e.g: db -> [http_server, grpc_server] -> cache
+
+## Example:
 
 ```go
 package main
@@ -44,7 +49,3 @@ func main() {
 	}
 }
 ```
-
-### TODO
-
-- sequential prioritised shutdown
