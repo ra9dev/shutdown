@@ -6,7 +6,7 @@ import (
 	"log"
 	"net/http"
 
-	"github.com/Propertyfinder/shutdown"
+	"github.com/ra9dev/shutdown"
 )
 
 func main() {
