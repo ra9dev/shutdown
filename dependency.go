@@ -46,17 +46,6 @@ func (n *DependencyNode) Nodes() []*DependencyNode {
 	return n.children
 }
 
-func (n *DependencyNode) ResetNodes() {
-	if n == nil {
-		return
-	}
-
-	n.mu.Lock()
-	defer n.mu.Unlock()
-
-	n.children = nil
-}
-
 func (n *DependencyNode) Find(key string) *DependencyNode {
 	if n == nil {
 		return nil
