@@ -30,15 +30,13 @@ func TestShutdownDependencies(t *testing.T) {
 		shutdown := NewGracefulShutdown()
 
 		dbIsOff := false
-		httpServerIsOff := false
-		grpcServerIsOff := false
-
 		shutdown.MustAdd("db", func(_ context.Context) {
 			dbIsOff = true
 
 			t.Log("db shutdown success")
 		})
 
+		httpServerIsOff := false
 		shutdown.MustAddDependant("db", "http_server", func(_ context.Context) {
 			assert.Truef(t, dbIsOff, "database is off")
 
@@ -50,14 +48,11 @@ func TestShutdownDependencies(t *testing.T) {
 		shutdown.MustAddDependant("db", "grpc_server", func(_ context.Context) {
 			assert.Truef(t, dbIsOff, "database is off")
 
-			grpcServerIsOff = true
-
 			t.Log("grpc_server shutdown success")
 		})
 
 		shutdown.MustAddDependant("http_server", "cache", func(_ context.Context) {
 			assert.Truef(t, httpServerIsOff, "http_server is off")
-			assert.Truef(t, grpcServerIsOff, "grpc_server is off")
 
 			t.Log("cache shutdown success")
 		})
