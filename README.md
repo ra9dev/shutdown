@@ -25,7 +25,7 @@ func main() {
 		Handler: mux,
 	}
 
-	shutdown.Add(func(ctx context.Context) {
+	shutdown.MustAdd("http_server", func(ctx context.Context) {
 		if err := httpSrv.Shutdown(ctx); err != nil {
 			log.Println("failed to shut down http server")
 
@@ -43,8 +43,6 @@ func main() {
 		panic(err)
 	}
 }
-
-
 ```
 
 ### TODO
