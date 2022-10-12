@@ -2,19 +2,22 @@ package shutdown
 
 import (
 	"context"
-	"github.com/stretchr/testify/assert"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
-func TestGracefulShutdown_Dependencies(t *testing.T) {
+func TestShutdownDependencies(t *testing.T) {
 	t.Run("flat dependencies shutdown", func(t *testing.T) {
+		t.Parallel()
+
 		shutdown := NewGracefulShutdown()
 
-		shutdown.Add("http_server", func(_ context.Context) {
+		shutdown.MustAdd("http_server", func(_ context.Context) {
 			t.Log("http_server shutdown success")
 		})
 
-		shutdown.Add("grpc_server", func(_ context.Context) {
+		shutdown.MustAdd("grpc_server", func(_ context.Context) {
 			t.Log("grpc_server shutdown success")
 		})
 
@@ -22,19 +25,21 @@ func TestGracefulShutdown_Dependencies(t *testing.T) {
 	})
 
 	t.Run("tree dependencies shutdown", func(t *testing.T) {
+		t.Parallel()
+
 		shutdown := NewGracefulShutdown()
 
 		dbIsOff := false
 		httpServerIsOff := false
 		grpcServerIsOff := false
 
-		shutdown.Add("db", func(_ context.Context) {
+		shutdown.MustAdd("db", func(_ context.Context) {
 			dbIsOff = true
 
 			t.Log("db shutdown success")
 		})
 
-		shutdown.AddDependant("db", "http_server", func(_ context.Context) {
+		shutdown.MustAddDependant("db", "http_server", func(_ context.Context) {
 			assert.Truef(t, dbIsOff, "database is off")
 
 			httpServerIsOff = true
@@ -42,7 +47,7 @@ func TestGracefulShutdown_Dependencies(t *testing.T) {
 			t.Log("http_server shutdown success")
 		})
 
-		shutdown.AddDependant("db", "grpc_server", func(_ context.Context) {
+		shutdown.MustAddDependant("db", "grpc_server", func(_ context.Context) {
 			assert.Truef(t, dbIsOff, "database is off")
 
 			grpcServerIsOff = true
@@ -50,7 +55,7 @@ func TestGracefulShutdown_Dependencies(t *testing.T) {
 			t.Log("grpc_server shutdown success")
 		})
 
-		shutdown.AddDependant("http_server", "cache", func(_ context.Context) {
+		shutdown.MustAddDependant("http_server", "cache", func(_ context.Context) {
 			assert.Truef(t, httpServerIsOff, "http_server is off")
 			assert.Truef(t, grpcServerIsOff, "grpc_server is off")
 
@@ -58,5 +63,37 @@ func TestGracefulShutdown_Dependencies(t *testing.T) {
 		})
 
 		shutdown.ForceShutdown()
+	})
+
+	t.Run("no dependency root panic", func(t *testing.T) {
+		t.Parallel()
+
+		shutdown := NewGracefulShutdown()
+
+		assert.Panics(t, func() {
+			shutdown.MustAddDependant("db", "http_server", func(_ context.Context) {
+				t.Log("http_server shutdown success")
+			})
+		})
+	})
+
+	t.Run("cyclic dependencies panic", func(t *testing.T) {
+		t.Parallel()
+
+		shutdown := NewGracefulShutdown()
+
+		assert.Panics(t, func() {
+			shutdown.MustAdd("db", func(ctx context.Context) {
+				t.Log("db shutdown success")
+			})
+
+			shutdown.MustAddDependant("db", "http_server", func(_ context.Context) {
+				t.Log("http_server shutdown success")
+			})
+
+			shutdown.MustAddDependant("http_server", "db", func(_ context.Context) {
+				t.Log("http_server<->db cycle dependency shutdown success")
+			})
+		})
 	})
 }

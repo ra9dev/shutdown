@@ -12,7 +12,9 @@ linters:
     - exhaustivestruct
     - exhaustruct
     - containedctx
+    - testpackage
     - godot
+    - funlen
 
 issues:
   # Restricts maximum count of issues to display with the same text, and show all instead.
@@ -34,7 +36,7 @@ linters-settings:
     # The longest distance, in source lines, that is being considered a "small scope".
     # Variables used in at most this many lines will be ignored.
     # Default: 5
-    max-distance: 10
+    max-distance: 20
     # The minimum length of a variable's name that is considered "long".
     # Variable names that are at least this long will be ignored.
     # Default: 3

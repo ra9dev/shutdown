@@ -46,15 +46,33 @@ func NewGracefulShutdown() *GracefulShutdown {
 }
 
 // Add adds a callback to a GracefulShutdown instance
-func (s *GracefulShutdown) Add(name string, fn CallbackFunc) {
+func (s *GracefulShutdown) Add(name string, fn CallbackFunc) error {
+	if err := s.dependencyTree.Insert(dependenciesRootKey, NewDependencyNode(name, fn)); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// MustAdd adds a callback to a GracefulShutdown instance
+func (s *GracefulShutdown) MustAdd(name string, fn CallbackFunc) {
 	if err := s.dependencyTree.Insert(dependenciesRootKey, NewDependencyNode(name, fn)); err != nil {
 		panic(err)
 	}
 }
 
 // AddDependant adds a dependant callback to a GracefulShutdown instance
-func (s *GracefulShutdown) AddDependant(dependsOn, key string, fn CallbackFunc) {
-	if err := s.dependencyTree.Insert(dependsOn, NewDependencyNode(key, fn)); err != nil {
+func (s *GracefulShutdown) AddDependant(dependsOn, name string, fn CallbackFunc) error {
+	if err := s.dependencyTree.Insert(dependsOn, NewDependencyNode(name, fn)); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// MustAddDependant adds a dependant callback to a GracefulShutdown instance
+func (s *GracefulShutdown) MustAddDependant(dependsOn, name string, fn CallbackFunc) {
+	if err := s.dependencyTree.Insert(dependsOn, NewDependencyNode(name, fn)); err != nil {
 		panic(err)
 	}
 }
