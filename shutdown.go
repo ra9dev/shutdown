@@ -19,7 +19,7 @@ type (
 		ctx  context.Context
 		done chan struct{}
 
-		dependencyGraph DependencyGraph
+		dependencyTree DependencyTree
 	}
 )
 
@@ -31,7 +31,7 @@ func NewGracefulShutdown() *GracefulShutdown {
 		ctx:  osCTX,
 		done: make(chan struct{}),
 
-		dependencyGraph: NewDependencyGraph(),
+		dependencyTree: NewDependencyTree(),
 	}
 
 	go func() {
@@ -46,15 +46,15 @@ func NewGracefulShutdown() *GracefulShutdown {
 }
 
 // Add adds a callback to a GracefulShutdown instance
-func (s *GracefulShutdown) Add(key string, fn CallbackFunc) {
-	if err := s.dependencyGraph.Insert(dependenciesRootKey, NewDependencyNode(key, fn)); err != nil {
+func (s *GracefulShutdown) Add(name string, fn CallbackFunc) {
+	if err := s.dependencyTree.Insert(dependenciesRootKey, NewDependencyNode(name, fn)); err != nil {
 		panic(err)
 	}
 }
 
 // AddDependant adds a dependant callback to a GracefulShutdown instance
 func (s *GracefulShutdown) AddDependant(dependsOn, key string, fn CallbackFunc) {
-	if err := s.dependencyGraph.Insert(dependsOn, NewDependencyNode(key, fn)); err != nil {
+	if err := s.dependencyTree.Insert(dependsOn, NewDependencyNode(key, fn)); err != nil {
 		panic(err)
 	}
 }
@@ -66,7 +66,7 @@ func (s *GracefulShutdown) ForceShutdown() {
 	ctx, cancel := context.WithTimeout(context.Background(), Timeout())
 	defer cancel()
 
-	s.dependencyGraph.Shutdown(ctx)
+	s.dependencyTree.Shutdown(ctx)
 }
 
 // Context will be cancelled whenever OS termination signals are sent to your application process.

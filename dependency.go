@@ -105,6 +105,10 @@ func (n *DependencyNode) Shutdown(ctx context.Context) {
 	n.mu.RLock()
 	defer n.mu.RUnlock()
 
+	if n.callback != nil {
+		n.callback(ctx)
+	}
+
 	wg := new(sync.WaitGroup)
 	wg.Add(len(n.children))
 
@@ -119,27 +123,27 @@ func (n *DependencyNode) Shutdown(ctx context.Context) {
 	}
 
 	wg.Wait()
-
-	if n.callback != nil {
-		n.callback(ctx)
-	}
 }
 
-type DependencyGraph struct {
+type DependencyTree struct {
 	root *DependencyNode
 }
 
-func NewDependencyGraph() DependencyGraph {
-	return DependencyGraph{
+func NewDependencyTree() DependencyTree {
+	return DependencyTree{
 		root: NewDependencyNode(dependenciesRootKey, nil),
 	}
 }
 
-func (dg DependencyGraph) Insert(rootKey string, newNode *DependencyNode) error {
+func (dg DependencyTree) Insert(rootKey string, newNode *DependencyNode) error {
 	if newKeyInTree := dg.root.Find(newNode.key); newKeyInTree != nil {
 		if rootNodeInNew := newKeyInTree.Find(rootKey); rootNodeInNew != nil {
 			return fmt.Errorf("%w: %s <-> %s", ErrCyclicDependencies, rootKey, newNode.key)
 		}
+	}
+
+	if rootKeyInTree := dg.root.Find(rootKey); rootKeyInTree == nil {
+		return fmt.Errorf("%w for key %s", ErrNoDependencyRoot, rootKey)
 	}
 
 	dg.root.Insert(rootKey, newNode)
@@ -147,6 +151,6 @@ func (dg DependencyGraph) Insert(rootKey string, newNode *DependencyNode) error 
 	return nil
 }
 
-func (dg DependencyGraph) Shutdown(ctx context.Context) {
+func (dg DependencyTree) Shutdown(ctx context.Context) {
 	dg.root.Shutdown(ctx)
 }

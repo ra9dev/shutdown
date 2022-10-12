@@ -22,8 +22,8 @@ func Timeout() time.Duration {
 }
 
 // Add shutdown callback to a global GracefulShutdown
-func Add(fn CallbackFunc) {
-	globalShutdown.Add(fn)
+func Add(name string, fn CallbackFunc) {
+	globalShutdown.Add(name, fn)
 }
 
 // Wait for a global GracefulShutdown, check GracefulShutdown.Wait
