@@ -3,7 +3,12 @@
 Graceful shutdown for Go! It listens process termination signals and handles
 your shutdown callbacks!
 
-You can use it both in local and global scope. Example:
+## Features
+
+- Scopes: local, global
+- Dependant callbacks with concurrent execution, e.g: db -> [http_server, grpc_server] -> cache
+
+## Example:
 
 ```go
 package main
@@ -25,7 +30,7 @@ func main() {
 		Handler: mux,
 	}
 
-	shutdown.Add(func(ctx context.Context) {
+	shutdown.MustAdd("http_server", func(ctx context.Context) {
 		if err := httpSrv.Shutdown(ctx); err != nil {
 			log.Println("failed to shut down http server")
 
@@ -43,10 +48,4 @@ func main() {
 		panic(err)
 	}
 }
-
-
 ```
-
-### TODO
-
-- sequential prioritised shutdown

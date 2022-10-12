@@ -4,7 +4,6 @@ import (
 	"context"
 	"os"
 	"os/signal"
-	"sync"
 	"syscall"
 	"time"
 )
@@ -17,10 +16,10 @@ type (
 
 	// GracefulShutdown handles all of your application Closable/Shutdownable dependencies
 	GracefulShutdown struct {
-		ctx       context.Context
-		mu        *sync.RWMutex
-		callbacks []CallbackFunc
-		done      chan struct{}
+		ctx  context.Context
+		done chan struct{}
+
+		dependencyTree DependencyTree
 	}
 )
 
@@ -29,10 +28,10 @@ func NewGracefulShutdown() *GracefulShutdown {
 	osCTX, cancel := signal.NotifyContext(context.Background(), signals...)
 
 	shutdown := &GracefulShutdown{
-		ctx:       osCTX,
-		mu:        new(sync.RWMutex),
-		callbacks: make([]CallbackFunc, 0),
-		done:      make(chan struct{}),
+		ctx:  osCTX,
+		done: make(chan struct{}),
+
+		dependencyTree: NewDependencyTree(),
 	}
 
 	go func() {
@@ -47,10 +46,35 @@ func NewGracefulShutdown() *GracefulShutdown {
 }
 
 // Add adds a callback to a GracefulShutdown instance
-func (s *GracefulShutdown) Add(fn CallbackFunc) {
-	s.mu.Lock()
-	s.callbacks = append(s.callbacks, fn)
-	s.mu.Unlock()
+func (s *GracefulShutdown) Add(name string, fn CallbackFunc) error {
+	if err := s.dependencyTree.Insert(dependenciesRootKey, NewDependencyNode(name, fn)); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// MustAdd adds a callback to a GracefulShutdown instance
+func (s *GracefulShutdown) MustAdd(name string, fn CallbackFunc) {
+	if err := s.dependencyTree.Insert(dependenciesRootKey, NewDependencyNode(name, fn)); err != nil {
+		panic(err)
+	}
+}
+
+// AddDependant adds a dependant callback to a GracefulShutdown instance
+func (s *GracefulShutdown) AddDependant(dependsOn, name string, fn CallbackFunc) error {
+	if err := s.dependencyTree.Insert(dependsOn, NewDependencyNode(name, fn)); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// MustAddDependant adds a dependant callback to a GracefulShutdown instance
+func (s *GracefulShutdown) MustAddDependant(dependsOn, name string, fn CallbackFunc) {
+	if err := s.dependencyTree.Insert(dependsOn, NewDependencyNode(name, fn)); err != nil {
+		panic(err)
+	}
 }
 
 // ForceShutdown processes all shutdown callbacks concurrently in a limited time frame (Timeout)
@@ -60,24 +84,7 @@ func (s *GracefulShutdown) ForceShutdown() {
 	ctx, cancel := context.WithTimeout(context.Background(), Timeout())
 	defer cancel()
 
-	s.mu.RLock()
-	callbacks := s.callbacks
-	s.mu.RUnlock()
-
-	wg := new(sync.WaitGroup)
-	wg.Add(len(callbacks))
-
-	for _, callback := range callbacks {
-		threadSafeCallback := callback
-
-		go func() {
-			defer wg.Done()
-
-			threadSafeCallback(ctx)
-		}()
-	}
-
-	wg.Wait()
+	s.dependencyTree.Shutdown(ctx)
 }
 
 // Context will be cancelled whenever OS termination signals are sent to your application process.
