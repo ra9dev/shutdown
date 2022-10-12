@@ -52,6 +52,13 @@ func (s *GracefulShutdown) Add(key string, fn CallbackFunc) {
 	}
 }
 
+// AddDependant adds a dependant callback to a GracefulShutdown instance
+func (s *GracefulShutdown) AddDependant(dependsOn, key string, fn CallbackFunc) {
+	if err := s.dependencyGraph.Insert(dependsOn, NewDependencyNode(key, fn)); err != nil {
+		panic(err)
+	}
+}
+
 // ForceShutdown processes all shutdown callbacks concurrently in a limited time frame (Timeout)
 func (s *GracefulShutdown) ForceShutdown() {
 	defer close(s.done)

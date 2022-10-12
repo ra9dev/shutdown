@@ -57,23 +57,6 @@ func (n *DependencyNode) ResetNodes() {
 	n.children = nil
 }
 
-func (n *DependencyNode) HasNode(key string) bool {
-	if n == nil {
-		return false
-	}
-
-	n.mu.RLock()
-	defer n.mu.RUnlock()
-
-	for _, child := range n.children {
-		if child.key == key {
-			return true
-		}
-	}
-
-	return false
-}
-
 func (n *DependencyNode) Find(key string) *DependencyNode {
 	if n == nil {
 		return nil
@@ -153,8 +136,10 @@ func NewDependencyGraph() DependencyGraph {
 }
 
 func (dg DependencyGraph) Insert(rootKey string, newNode *DependencyNode) error {
-	if newKeyInTree := dg.root.Find(newNode.key); newKeyInTree != nil && newKeyInTree.HasNode(rootKey) {
-		return fmt.Errorf("%w: %s <-> %s", ErrCyclicDependencies, rootKey, newNode.key)
+	if newKeyInTree := dg.root.Find(newNode.key); newKeyInTree != nil {
+		if rootNodeInNew := newKeyInTree.Find(rootKey); rootNodeInNew != nil {
+			return fmt.Errorf("%w: %s <-> %s", ErrCyclicDependencies, rootKey, newNode.key)
+		}
 	}
 
 	dg.root.Insert(rootKey, newNode)
