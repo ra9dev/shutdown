@@ -16,31 +16,29 @@ type (
 
 	// GracefulShutdown handles all of your application Closable/Shutdownable dependencies
 	GracefulShutdown struct {
-		ctx  context.Context
+		stop <-chan os.Signal
 		done chan struct{}
 
 		dependencyTree DependencyTree
 	}
 )
 
+func newStopChan() <-chan os.Signal {
+	stop := make(chan os.Signal, len(signals))
+
+	signal.Notify(stop, signals...)
+
+	return stop
+}
+
 // NewGracefulShutdown constructor
 func NewGracefulShutdown() *GracefulShutdown {
-	osCTX, cancel := signal.NotifyContext(context.Background(), signals...)
-
 	shutdown := &GracefulShutdown{
-		ctx:  osCTX,
+		stop: newStopChan(),
 		done: make(chan struct{}),
 
 		dependencyTree: NewDependencyTree(),
 	}
-
-	go func() {
-		defer cancel()
-
-		<-shutdown.ctx.Done()
-
-		shutdown.ForceShutdown()
-	}()
 
 	return shutdown
 }
@@ -87,24 +85,23 @@ func (s *GracefulShutdown) ForceShutdown() {
 	s.dependencyTree.Shutdown(ctx)
 }
 
-// Context will be cancelled whenever OS termination signals are sent to your application process.
-// Becomes handy when you want to propagate process context.
-func (s *GracefulShutdown) Context() context.Context {
-	return s.ctx
-}
-
 // Wait for it! Shutdown can be forced, cancelled by timeout, finished correctly.
 // Required to use this method before application process termination.
 func (s *GracefulShutdown) Wait() error {
-	stop := make(chan os.Signal, 1)
-	signal.Notify(stop, signals...)
+	<-s.stop
+
+	go func() {
+		s.ForceShutdown()
+	}()
+
+	forceStop := newStopChan()
 
 	select {
 	case <-s.done:
 		return nil
 	case <-time.After(Timeout()):
-		return ErrTimeout
-	case <-stop:
+		return nil
+	case <-forceStop:
 		return ErrForceStop
 	}
 }

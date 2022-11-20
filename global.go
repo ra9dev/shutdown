@@ -1,7 +1,6 @@
 package shutdown
 
 import (
-	"context"
 	"time"
 )
 
@@ -44,9 +43,4 @@ func MustAddDependant(dependsOn, name string, fn CallbackFunc) {
 // Wait for a global GracefulShutdown, check GracefulShutdown.Wait
 func Wait() error {
 	return globalShutdown.Wait()
-}
-
-// Context of a global GracefulShutdown, check GracefulShutdown.Context
-func Context() context.Context {
-	return globalShutdown.Context()
 }
