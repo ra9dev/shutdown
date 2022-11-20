@@ -41,6 +41,6 @@ func MustAddDependant(dependsOn, name string, fn CallbackFunc) {
 }
 
 // Wait for a global GracefulShutdown, check GracefulShutdown.Wait
-func Wait() error {
+func Wait() chan error {
 	return globalShutdown.Wait()
 }

@@ -87,7 +87,17 @@ func (s *GracefulShutdown) ForceShutdown() {
 
 // Wait for it! Shutdown can be forced, cancelled by timeout, finished correctly.
 // Required to use this method before application process termination.
-func (s *GracefulShutdown) Wait() error {
+func (s *GracefulShutdown) Wait() chan error {
+	done := make(chan error, 1)
+
+	go func() {
+		done <- s.wait()
+	}()
+
+	return done
+}
+
+func (s *GracefulShutdown) wait() error {
 	<-s.stop
 
 	go func() {

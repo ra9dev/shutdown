@@ -24,41 +24,41 @@ func NewDependencyNode(key string, callback CallbackFunc) *DependencyNode {
 	}
 }
 
-func (n *DependencyNode) Key() string {
-	if n == nil {
+func (node *DependencyNode) Key() string {
+	if node == nil {
 		return ""
 	}
 
-	n.mu.RLock()
-	defer n.mu.RUnlock()
+	node.mu.RLock()
+	defer node.mu.RUnlock()
 
-	return n.key
+	return node.key
 }
 
-func (n *DependencyNode) Nodes() []*DependencyNode {
-	if n == nil {
+func (node *DependencyNode) Nodes() []*DependencyNode {
+	if node == nil {
 		return nil
 	}
 
-	n.mu.RLock()
-	defer n.mu.RUnlock()
+	node.mu.RLock()
+	defer node.mu.RUnlock()
 
-	return n.children
+	return node.children
 }
 
-func (n *DependencyNode) Find(key string) *DependencyNode {
-	if n == nil {
+func (node *DependencyNode) Find(key string) *DependencyNode {
+	if node == nil {
 		return nil
 	}
 
-	n.mu.RLock()
-	defer n.mu.RUnlock()
+	node.mu.RLock()
+	defer node.mu.RUnlock()
 
-	if n.key == key {
-		return n
+	if node.key == key {
+		return node
 	}
 
-	for _, child := range n.children {
+	for _, child := range node.children {
 		if found := child.Find(key); found != nil {
 			return found
 		}
@@ -67,41 +67,46 @@ func (n *DependencyNode) Find(key string) *DependencyNode {
 	return nil
 }
 
-func (n *DependencyNode) Insert(rootKey string, newNode *DependencyNode) {
-	if n == nil || newNode == nil {
+func (node *DependencyNode) Insert(rootKey string, newNode *DependencyNode) {
+	if node == nil || newNode == nil {
 		return
 	}
 
-	n.mu.Lock()
-	defer n.mu.Unlock()
-
-	if n.key == rootKey {
-		n.children = append(n.children, newNode)
+	if node.key == rootKey {
+		node.mu.Lock()
+		node.children = append(node.children, newNode)
+		node.mu.Unlock()
 
 		return
 	}
 
-	for _, child := range n.children {
+	for _, child := range node.children {
 		child.Insert(rootKey, newNode)
 	}
 }
 
-func (n *DependencyNode) Shutdown(ctx context.Context) {
-	if n == nil {
+func (node *DependencyNode) Shutdown(ctx context.Context) {
+	select {
+	case <-ctx.Done():
+		return
+	default:
+	}
+
+	if node == nil {
 		return
 	}
 
-	n.mu.RLock()
-	defer n.mu.RUnlock()
+	node.mu.RLock()
+	defer node.mu.RUnlock()
 
-	if n.callback != nil {
-		n.callback(ctx)
+	if node.callback != nil {
+		node.callback(ctx)
 	}
 
 	wg := new(sync.WaitGroup)
-	wg.Add(len(n.children))
+	wg.Add(len(node.children))
 
-	for _, child := range n.children {
+	for _, child := range node.children {
 		threadSafeChild := child
 
 		go func() {
