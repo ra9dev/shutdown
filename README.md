@@ -18,7 +18,6 @@ import (
 	"errors"
 	"log"
 	"net/http"
-	"time"
 
 	"github.com/ra9dev/shutdown"
 )
@@ -35,8 +34,6 @@ func main() {
 
 	shutdown.MustAdd("http_server", func(ctx context.Context) {
 		log.Println("started http_server shutdown")
-
-		time.Sleep(time.Second * 10)
 
 		if err := httpSrv.Shutdown(ctx); err != nil {
 			log.Printf("failed to shutdown http_server: %v", err)
