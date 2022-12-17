@@ -16,29 +16,29 @@ type (
 
 	// GracefulShutdown handles all of your application Closable/Shutdownable dependencies
 	GracefulShutdown struct {
-		stop chan os.Signal
 		done chan struct{}
 
 		dependencyTree DependencyTree
 	}
 )
 
-func newStopChan() chan os.Signal {
-	stop := make(chan os.Signal, len(signals))
-
-	signal.Notify(stop, signals...)
-
-	return stop
-}
-
 // NewGracefulShutdown constructor
 func NewGracefulShutdown() *GracefulShutdown {
+	osCTX, cancel := signal.NotifyContext(context.Background(), signals...)
+
 	shutdown := &GracefulShutdown{
-		stop: newStopChan(),
 		done: make(chan struct{}),
 
 		dependencyTree: NewDependencyTree(),
 	}
+
+	go func() {
+		defer cancel()
+
+		<-osCTX.Done()
+
+		shutdown.ForceShutdown()
+	}()
 
 	return shutdown
 }
@@ -77,8 +77,6 @@ func (s *GracefulShutdown) MustAddDependant(dependsOn, name string, fn CallbackF
 
 // ForceShutdown processes all shutdown callbacks concurrently in a limited time frame (Timeout)
 func (s *GracefulShutdown) ForceShutdown() {
-	close(s.stop)
-
 	defer close(s.done)
 
 	ctx, cancel := context.WithTimeout(context.Background(), Timeout())
@@ -89,31 +87,18 @@ func (s *GracefulShutdown) ForceShutdown() {
 
 // Wait for it! Shutdown can be forced, cancelled by timeout, finished correctly.
 // Required to use this method before application process termination.
-func (s *GracefulShutdown) Wait() chan error {
-	done := make(chan error, 1)
+func (s *GracefulShutdown) Wait() error {
+	<-s.done
 
-	go func() {
-		done <- s.wait()
-	}()
-
-	return done
-}
-
-func (s *GracefulShutdown) wait() error {
-	<-s.stop
-
-	go func() {
-		s.ForceShutdown()
-	}()
-
-	forceStop := newStopChan()
+	stop := make(chan os.Signal, 1)
+	signal.Notify(stop, signals...)
 
 	select {
 	case <-s.done:
 		return nil
 	case <-time.After(Timeout()):
 		return nil
-	case <-forceStop:
+	case <-stop:
 		return ErrForceStop
 	}
 }

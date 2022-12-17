@@ -13,37 +13,25 @@ func main() {
 	mux := http.NewServeMux()
 
 	httpSrv := http.Server{
-		Addr:    ":8090",
+		Addr:    ":8888",
 		Handler: mux,
 	}
 
-	gracefulShutdownDone := shutdown.Wait()
-
 	shutdown.MustAdd("http_server", func(ctx context.Context) {
-		log.Println("started http_server shutdown")
-
 		if err := httpSrv.Shutdown(ctx); err != nil {
-			log.Printf("failed to shutdown http_server: %v", err)
+			log.Println("failed to shut down http server")
 
 			return
 		}
 
-		log.Println("finished http_server shutdown")
+		log.Println("gracefully shut down http server")
 	})
 
-	go func() {
-		if err := httpSrv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
-			log.Printf("failed to listen&serve http_server: %v", err)
-
-			return
-		}
-	}()
-
-	if err := <-gracefulShutdownDone; err != nil {
-		log.Printf("failed to shutdown: %v", err)
-
-		return
+	if err := httpSrv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+		panic(err)
 	}
 
-	log.Println("successfully shutdown")
+	if err := shutdown.Wait(); err != nil {
+		panic(err)
+	}
 }

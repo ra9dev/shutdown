@@ -41,11 +41,11 @@ func MustAddDependant(dependsOn, name string, fn CallbackFunc) {
 }
 
 // Wait for a global GracefulShutdown, check GracefulShutdown.Wait
-func Wait() chan error {
+func Wait() error {
 	return globalShutdown.Wait()
 }
 
-// ForceShutdown for a global GracefulShutdown, check GracefulShutdown.ForceShutdown
+// ForceShutdown for a global ForceShutdown, check GracefulShutdown.ForceShutdown
 func ForceShutdown() {
 	globalShutdown.ForceShutdown()
 }
