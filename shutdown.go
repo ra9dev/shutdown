@@ -16,14 +16,14 @@ type (
 
 	// GracefulShutdown handles all of your application Closable/Shutdownable dependencies
 	GracefulShutdown struct {
-		stop <-chan os.Signal
+		stop chan os.Signal
 		done chan struct{}
 
 		dependencyTree DependencyTree
 	}
 )
 
-func newStopChan() <-chan os.Signal {
+func newStopChan() chan os.Signal {
 	stop := make(chan os.Signal, len(signals))
 
 	signal.Notify(stop, signals...)
@@ -77,6 +77,8 @@ func (s *GracefulShutdown) MustAddDependant(dependsOn, name string, fn CallbackF
 
 // ForceShutdown processes all shutdown callbacks concurrently in a limited time frame (Timeout)
 func (s *GracefulShutdown) ForceShutdown() {
+	close(s.stop)
+
 	defer close(s.done)
 
 	ctx, cancel := context.WithTimeout(context.Background(), Timeout())
